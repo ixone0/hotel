@@ -1,16 +1,16 @@
-version: "3.8"
+version: "3.9"
 
 services:
   backend:
-    image: ghcr.io/ixone0/backend:latest
+    image: ghcr.io/ixone0/hotel-backend:latest
     ports:
       - "8000:8000"
     restart: always
 
   frontend:
-    image: ghcr.io/ixone0/frontend:latest
+    image: ghcr.io/ixone0/hotel-frontend:latest
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - backend
     restart: always

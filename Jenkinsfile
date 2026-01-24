@@ -28,9 +28,9 @@ pipeline {
     stage('Deploy') {
       steps {
         sh '''
-          docker compose down
-          docker compose pull
-          docker compose up -d
+          docker compose -p hotel down || true
+          docker compose -p hotel pull
+          docker compose -p hotel up -d
         '''
       }
     }

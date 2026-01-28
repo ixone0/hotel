@@ -2,13 +2,17 @@ version: "3.9"
 
 services:
   backend:
-    image: ghcr.io/ixone0/hotel-backend:latest
+    image: ghcr.io/ixone0/hotel-backend:${IMAGE_TAG}
+    env_file:
+      - ../.env.prod
     ports:
       - "8000:8000"
     restart: always
 
   frontend:
-    image: ghcr.io/ixone0/hotel-frontend:latest
+    image: ghcr.io/ixone0/hotel-frontend:${IMAGE_TAG}
+    env_file:
+      - ../.env.prod
     ports:
       - "80:80"
     depends_on:

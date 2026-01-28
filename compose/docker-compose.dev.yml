@@ -10,14 +10,14 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT}:5432"  # เปิดเฉพาะ dev ถ้าต้องการให้คนอื่นเชื่อมจาก host
+      - "${POSTGRES_PORT}:5432"
 
   backend:
-    build: ./backend
+    build: ../backend
     volumes:
-      - ./backend:/app              # hot reload ใน dev (ถ้าต้องการ)
+      - ../backend:/app
     env_file:
-      - .env
+      - ../.env.dev
     environment:
       - DATABASE_URL=${DATABASE_URL}
     ports:
@@ -26,11 +26,11 @@ services:
       - db
 
   frontend:
-    build: ./frontend
+    build: ../frontend
     volumes:
-      - ./frontend:/app
+      - ../frontend:/app
     env_file:
-      - .env
+      - ../.env.dev
     environment:
       - API_URL=${API_URL}
     ports:

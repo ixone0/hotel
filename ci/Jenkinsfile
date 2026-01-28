@@ -1,7 +1,13 @@
 pipeline {
   agent any
 
+  environment {
+    IMAGE_TAG = "${BUILD_NUMBER}"
+    REGISTRY  = "ghcr.io/ixone0"
+  }
+
   stages {
+
     stage('Login GHCR') {
       steps {
         withCredentials([usernamePassword(
@@ -17,21 +23,37 @@ pipeline {
     stage('Build & Push') {
       steps {
         sh '''
-          docker build -t ghcr.io/ixone0/hotel-backend backend
-          docker build -t ghcr.io/ixone0/hotel-frontend frontend
-          docker push ghcr.io/ixone0/hotel-backend
-          docker push ghcr.io/ixone0/hotel-frontend
+          docker build -t $REGISTRY/hotel-backend:$IMAGE_TAG backend
+          docker build -t $REGISTRY/hotel-frontend:$IMAGE_TAG frontend
+
+          docker push $REGISTRY/hotel-backend:$IMAGE_TAG
+          docker push $REGISTRY/hotel-frontend:$IMAGE_TAG
         '''
       }
     }
 
     stage('Deploy') {
       steps {
-        sh '''
-          docker compose -p hotel down || true
-          docker compose -p hotel pull
-          docker compose -p hotel up -d
-        '''
+        dir('..') {
+          sh '''
+            export IMAGE_TAG=$IMAGE_TAG
+
+            docker compose \
+              -f compose/docker-compose.prod.yml \
+              --env-file .env.prod \
+              -p hotel down || true
+
+            docker compose \
+              -f compose/docker-compose.prod.yml \
+              --env-file .env.prod \
+              -p hotel pull
+
+            docker compose \
+              -f compose/docker-compose.prod.yml \
+              --env-file .env.prod \
+              -p hotel up -d
+          '''
+        }
       }
     }
   }

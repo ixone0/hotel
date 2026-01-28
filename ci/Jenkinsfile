@@ -4,9 +4,17 @@ pipeline {
   environment {
     IMAGE_TAG = "${BUILD_NUMBER}"
     REGISTRY  = "ghcr.io/ixone0"
+    // WORKDIR is the absolute repo workspace path where checkout happened
+    WORKDIR = "${env.WORKSPACE}"
   }
 
   stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
 
     stage('Login GHCR') {
       steps {
@@ -22,39 +30,81 @@ pipeline {
 
     stage('Build & Push') {
       steps {
-        sh '''
-          docker build -t $REGISTRY/hotel-backend:$IMAGE_TAG backend
-          docker build -t $REGISTRY/hotel-frontend:$IMAGE_TAG frontend
+        dir("${WORKDIR}") {
+          sh '''
+            docker build -t $REGISTRY/hotel-backend:$IMAGE_TAG backend
+            docker build -t $REGISTRY/hotel-frontend:$IMAGE_TAG frontend
 
-          docker push $REGISTRY/hotel-backend:$IMAGE_TAG
-          docker push $REGISTRY/hotel-frontend:$IMAGE_TAG
-        '''
+            docker push $REGISTRY/hotel-backend:$IMAGE_TAG
+            docker push $REGISTRY/hotel-frontend:$IMAGE_TAG
+          '''
+        }
+      }
+    }
+
+    stage('Prepare Prod Env File') {
+      steps {
+        // OPTION A: If you stored the entire .env.prod content as a single "Secret text" credential
+        withCredentials([string(credentialsId: 'env-prod-file', variable: 'ENV_PROD_CONTENT')]) {
+          dir("${WORKDIR}") {
+            sh '''
+              echo "$ENV_PROD_CONTENT" > .env.prod
+              # Ensure IMAGE_TAG is present in the env file
+              if ! grep -q "^IMAGE_TAG=" .env.prod; then
+                echo "IMAGE_TAG=$IMAGE_TAG" >> .env.prod
+              else
+                # replace existing IMAGE_TAG line
+                sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env.prod
+              fi
+              ls -la .env.prod
+              cat .env.prod  # optional: remove or mask if contains secrets
+            '''
+          }
+        }
+
+        /* 
+        OPTION B (alternative): if you store separate secrets and want to create .env.prod from parts,
+        you could use withCredentials([...]) for each secret and echo them into .env.prod similarly.
+        */
       }
     }
 
     stage('Deploy') {
       steps {
-        dir('..') {
+        dir("${WORKDIR}") {
           sh '''
+            # Make sure IMAGE_TAG environment var is set for docker-compose substitution
             export IMAGE_TAG=$IMAGE_TAG
 
             docker compose \
-              -f compose/docker-compose.prod.yml \
-              --env-file .env.prod \
+              -f ${WORKDIR}/compose/docker-compose.prod.yml \
+              --env-file ${WORKDIR}/.env.prod \
               -p hotel down || true
 
             docker compose \
-              -f compose/docker-compose.prod.yml \
-              --env-file .env.prod \
+              -f ${WORKDIR}/compose/docker-compose.prod.yml \
+              --env-file ${WORKDIR}/.env.prod \
               -p hotel pull
 
             docker compose \
-              -f compose/docker-compose.prod.yml \
-              --env-file .env.prod \
+              -f ${WORKDIR}/compose/docker-compose.prod.yml \
+              --env-file ${WORKDIR}/.env.prod \
               -p hotel up -d
           '''
         }
       }
     }
+
+    stage('Cleanup') {
+      steps {
+        dir("${WORKDIR}") {
+          sh '''
+            # remove .env.prod after deploy to avoid leaving secrets on disk
+            rm -f .env.prod
+          '''
+        }
+      }
+    }
+
   }
 }

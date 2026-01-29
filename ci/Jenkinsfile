@@ -48,16 +48,16 @@ pipeline {
             file(credentialsId: 'env-prod-file', variable: 'ENV_PROD_FILE')
           ]) {
             sh '''
-              cp $ENV_PROD_FILE .env.prod
+              cp $ENV_PROD_FILE compose/.env.prod
 
               # ensure IMAGE_TAG matches current build
               if grep -q "^IMAGE_TAG=" .env.prod; then
-                sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env.prod
+                sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" compose/.env.prod
               else
-                echo "IMAGE_TAG=$IMAGE_TAG" >> .env.prod
+                echo "IMAGE_TAG=$IMAGE_TAG" >> compose/.env.prod
               fi
 
-              ls -la .env.prod
+              ls -la compose/.env.prod
             '''
           }
         }
@@ -72,17 +72,17 @@ pipeline {
 
             docker compose \
               -f compose/docker-compose.prod.yml \
-              --env-file .env.prod \
+              --env-file compose/.env.prod \
               -p hotel down || true
 
             docker compose \
               -f compose/docker-compose.prod.yml \
-              --env-file .env.prod \
+              --env-file compose/.env.prod \
               -p hotel pull
 
             docker compose \
               -f compose/docker-compose.prod.yml \
-              --env-file .env.prod \
+              --env-file compose/.env.prod \
               -p hotel up -d
           '''
         }
@@ -92,7 +92,7 @@ pipeline {
     stage('Cleanup') {
       steps {
         dir("${WORKDIR}") {
-          sh 'rm -f .env.prod'
+          sh 'rm -f compose/.env.prod'
         }
       }
     }

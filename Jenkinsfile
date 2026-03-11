@@ -35,7 +35,7 @@ pipeline {
         '''
       }
     }
-1
+
     stage('Prepare Prod Env File') {
       steps {
         withCredentials([
